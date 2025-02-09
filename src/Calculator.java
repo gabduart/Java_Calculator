@@ -1,5 +1,6 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.util.Stack;
 import java.util.Arrays;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
@@ -18,17 +19,19 @@ public class Calculator {
     JPanel displayPanel = new JPanel();
     JPanel buttonsPanel = new JPanel();
 
+    String expression = "";
+
     String[] buttonValues = {
-            "(", ")", "%", "AC",
-            "7", "8", "9", "÷",
-            "4", "5", "6", "x",
-            "1", "2", "3", "-",
-            "0", ".", "=", "+"
+            "AC", "+/-", "%", "÷",
+            "7", "8", "9", "x",
+            "4", "5", "6", "-",
+            "1", "2", "3", "+",
+            "0", ".", "√", "="
     };
 
-    String[] rightSymbols = {"AC", "÷", "x", "-", "+"};
-    String[] topSymbols = {"(", ")", "%"};
-    String[] graySymbols = {"(", ")", "%", "AC", "÷", "x", "-", "+"};
+    String[] graySymbols = {"AC", "+/-", "%", "÷", "x", "-", "+"};
+//    String[] rightSymbols = {"÷", "x", "-", "+", "="};
+//    String[] topSymbols = {"AC", "+/-", "%"};
 
     public Calculator() {
         frame.setSize(boardWidth, boardHeight);
@@ -59,19 +62,118 @@ public class Calculator {
             button.setBorder(new LineBorder(CustomArsenic));
 
             if (Arrays.asList(graySymbols).contains(buttonValue)) {
-                button.setBackground(CustomOldSilver);
+                button.setBackground(CustomGraniteGray);
                 button.setForeground(Color.white);
             } else if (buttonValue.equals("=")) {
                 button.setBackground(CustomBlueberry);
                 button.setForeground(Color.white);
             } else {
-                button.setBackground(CustomGraniteGray);
+                button.setBackground(CustomOldSilver);
                 button.setForeground(Color.white);
             }
 
             buttonsPanel.add(button);
+            button.addActionListener(e -> handleButtonClick(button.getText()));
         }
 
         frame.setVisible(true);
+    }
+
+    private void handleButtonClick(String buttonValue) {
+        if (buttonValue.equals("AC")) {
+            expression = "";
+            displayLabel.setText("0");
+        } else if (buttonValue.equals("+/-")) {
+            if (!expression.isEmpty()) {
+                expression = "-" + expression;
+                displayLabel.setText(expression);
+            }
+        } else if (buttonValue.equals("%")) {
+            try {
+                double value = Double.parseDouble(expression);
+                expression = removeZeroDecimal(value / 100);
+                displayLabel.setText(expression);
+            } catch (NumberFormatException ex) {
+                displayLabel.setText("Erro");
+            }
+        } else if (buttonValue.equals("√")) {
+            try {
+                double value = Double.parseDouble(expression);
+                if (value >= 0) {
+                    expression = removeZeroDecimal(Math.sqrt(value));
+                    displayLabel.setText(expression);
+                } else {
+                    displayLabel.setText("Erro");
+                }
+            } catch (NumberFormatException ex) {
+                displayLabel.setText("Erro");
+            }
+        } else if (buttonValue.equals("=")) {
+            try {
+                double result = evaluateExpression(expression);
+                expression = removeZeroDecimal(result);
+                displayLabel.setText(expression);
+            } catch (Exception ex) {
+                displayLabel.setText("Erro");
+            }
+        } else {
+            expression += buttonValue;
+            displayLabel.setText(expression);
+        }
+    }
+
+    private double evaluateExpression(String expr) {
+        expr = expr.replace("x", "*").replace("÷", "/");
+        return evaluatePostfix(infixToPostfix(expr));
+    }
+
+    private String removeZeroDecimal(double num) {
+        return (num % 1 == 0) ? Integer.toString((int) num) : Double.toString(num);
+    }
+
+    private String infixToPostfix(String infix) {
+        StringBuilder output = new StringBuilder();
+        Stack<Character> stack = new Stack<>();
+        for (char ch : infix.toCharArray()) {
+            if (Character.isDigit(ch) || ch == '.') {
+                output.append(ch);
+            } else {
+                output.append(' ');
+                while (!stack.isEmpty() && precedence(stack.peek()) >= precedence(ch)) {
+                    output.append(stack.pop()).append(' ');
+                }
+                stack.push(ch);
+            }
+        }
+        while (!stack.isEmpty()) {
+            output.append(' ').append(stack.pop());
+        }
+
+//        System.out.println(output.toString());
+        return output.toString();
+    }
+
+    private double evaluatePostfix(String postfix) {
+        Stack<Double> stack = new Stack<>();
+        for (String token : postfix.split(" ")) {
+            if (token.isEmpty()) continue;
+            if (token.matches("[-+]?\\d*\\.?\\d+")) {
+                stack.push(Double.parseDouble(token));
+            } else {
+                double b = stack.pop();
+                double a = stack.pop();
+                switch (token) {
+                    case "+" -> stack.push(a + b);
+                    case "-" -> stack.push(a - b);
+                    case "*" -> stack.push(a * b);
+                    case "/" -> stack.push(a / b);
+                }
+            }
+        }
+        return stack.pop();
+    }
+
+    private int precedence(char op) {
+        return (op == '+' || op == '-') ? 1 : (op == '*' || op == '/') ? 2 : 0;
     }
 }
